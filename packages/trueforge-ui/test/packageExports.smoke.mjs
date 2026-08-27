@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { execPath } from 'node:process';
+import { execPath, platform } from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
 
-const win32Shell = process.platform === 'win32' ? { shell: true } : {};
+const win32Shell = platform === 'win32' ? { shell: true } : {};
 
 // Create a temporary directory to test the package exports
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
@@ -33,7 +33,7 @@ try {
   // Plugin adapter depends on @truefoundry/trueforge-sdk (workspace:* in monorepo) — expose it to the smoke consumer.
   const sdkSource = path.resolve(packageRoot, '../trueforge-sdk');
   const sdkLink = path.join(tempDir, 'node_modules', '@truefoundry', 'trueforge-sdk');
-  await symlink(sdkSource, sdkLink, process.platform === 'win32' ? 'junction' : undefined);
+  await symlink(sdkSource, sdkLink, platform === 'win32' ? 'junction' : undefined);
 
   // create a package.json for the consumer
   await writeFile(

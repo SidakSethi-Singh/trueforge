@@ -155,8 +155,8 @@ jobs:
       - name: Build
         run: pnpm build
 
-  windows-build-and-test:
-    name: Build and Test (Windows)
+  windows-test:
+    name: Test (Windows)
     runs-on: windows-latest
     timeout-minutes: 45
 
@@ -175,9 +175,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Build
-        run: pnpm build
 
       - name: Test
         run: pnpm test
@@ -296,7 +293,7 @@ jobs:
     needs:
       - detect-changes
       - typecheck-and-build
-      - windows-build-and-test
+      - windows-test
       - package-checks
       - chart-checks
       - store-tests
@@ -307,16 +304,16 @@ jobs:
         env:
           DETECT_CHANGES: ${{ needs.detect-changes.result }}
           TYPECHECK_AND_BUILD: ${{ needs.typecheck-and-build.result }}
-          WINDOWS_BUILD_AND_TEST: ${{ needs.windows-build-and-test.result }}
+          WINDOWS_TEST: ${{ needs.windows-test.result }}
           PACKAGE_CHECKS: ${{ needs.package-checks.result }}
           CHART_CHECKS: ${{ needs.chart-checks.result }}
           STORE_TESTS: ${{ needs.store-tests.result }}
         run: |
           ok() { [ "$1" = success ] || [ "$1" = skipped ]; }
-          echo "detect-changes=$DETECT_CHANGES typecheck-and-build=$TYPECHECK_AND_BUILD windows-build-and-test=$WINDOWS_BUILD_AND_TEST package-checks=$PACKAGE_CHECKS chart-checks=$CHART_CHECKS store-tests=$STORE_TESTS"
+          echo "detect-changes=$DETECT_CHANGES typecheck-and-build=$TYPECHECK_AND_BUILD windows-test=$WINDOWS_TEST package-checks=$PACKAGE_CHECKS chart-checks=$CHART_CHECKS store-tests=$STORE_TESTS"
           [ "$DETECT_CHANGES" = success ] || exit 1
           [ "$TYPECHECK_AND_BUILD" = success ] || exit 1
-          [ "$WINDOWS_BUILD_AND_TEST" = success ] || exit 1
+          [ "$WINDOWS_TEST" = success ] || exit 1
           ok "$PACKAGE_CHECKS" || exit 1
           ok "$CHART_CHECKS" || exit 1
           ok "$STORE_TESTS" || exit 1
