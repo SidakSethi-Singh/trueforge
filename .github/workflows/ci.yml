@@ -134,7 +134,7 @@ jobs:
   typecheck-and-build:
     name: Format, Typecheck, Lint and Build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository code
@@ -172,13 +172,43 @@ jobs:
       - name: Build
         run: pnpm build
 
+  windows-test:
+    name: Test (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: SQLite store tests
+        run: pnpm test:store:sqlite
+
+      - name: Pack and boot published CLI
+        run: pnpm smoke:npx
+
   # Path-gated tests only — format/lint are covered by the global job above.
   package-checks:
     name: Package (${{ matrix.package }})
     needs: detect-changes
     if: needs.detect-changes.outputs.packages != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -287,6 +317,7 @@ jobs:
       - detect-changes
       - migration-order
       - typecheck-and-build
+      - windows-test
       - package-checks
       - chart-checks
       - store-tests
@@ -298,15 +329,17 @@ jobs:
           DETECT_CHANGES: ${{ needs.detect-changes.result }}
           MIGRATION_ORDER: ${{ needs.migration-order.result }}
           TYPECHECK_AND_BUILD: ${{ needs.typecheck-and-build.result }}
+          WINDOWS_TEST: ${{ needs.windows-test.result }}
           PACKAGE_CHECKS: ${{ needs.package-checks.result }}
           CHART_CHECKS: ${{ needs.chart-checks.result }}
           STORE_TESTS: ${{ needs.store-tests.result }}
         run: |
           ok() { [ "$1" = success ] || [ "$1" = skipped ]; }
-          echo "detect-changes=$DETECT_CHANGES migration-order=$MIGRATION_ORDER typecheck-and-build=$TYPECHECK_AND_BUILD package-checks=$PACKAGE_CHECKS chart-checks=$CHART_CHECKS store-tests=$STORE_TESTS"
+          echo "detect-changes=$DETECT_CHANGES migration-order=$MIGRATION_ORDER typecheck-and-build=$TYPECHECK_AND_BUILD windows-test=$WINDOWS_TEST package-checks=$PACKAGE_CHECKS chart-checks=$CHART_CHECKS store-tests=$STORE_TESTS"
           [ "$DETECT_CHANGES" = success ] || exit 1
           [ "$MIGRATION_ORDER" = success ] || exit 1
           [ "$TYPECHECK_AND_BUILD" = success ] || exit 1
+          [ "$WINDOWS_TEST" = success ] || exit 1
           ok "$PACKAGE_CHECKS" || exit 1
           ok "$CHART_CHECKS" || exit 1
           ok "$STORE_TESTS" || exit 1
