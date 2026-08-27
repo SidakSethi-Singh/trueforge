@@ -5,6 +5,8 @@ import path from 'node:path';
 import { execPath } from 'node:process';
 import { fileURLToPath, URL } from 'node:url';
 
+const win32Shell = process.platform === 'win32' ? { shell: true } : {};
+
 // Create a temporary directory to test the package exports
 const packageRoot = fileURLToPath(new URL('..', import.meta.url));
 const tempDir = await mkdtemp(path.join(packageRoot, 'test', '.package-smoke-'));
@@ -14,6 +16,7 @@ try {
   execFileSync('pnpm', ['pack', '--pack-destination', tempDir], {
     cwd: packageRoot,
     stdio: 'inherit',
+    ...win32Shell,
   });
 
   // confirm that the tarball was created
@@ -28,10 +31,9 @@ try {
   execFileSync('tar', ['-xzf', path.join(tempDir, tarballName), '--strip-components=1', '-C', packageDir]);
 
   // Plugin adapter depends on @truefoundry/trueforge-sdk (workspace:* in monorepo) — expose it to the smoke consumer.
-  await symlink(
-    path.resolve(packageRoot, '../trueforge-sdk'),
-    path.join(tempDir, 'node_modules', '@truefoundry', 'trueforge-sdk'),
-  );
+  const sdkSource = path.resolve(packageRoot, '../trueforge-sdk');
+  const sdkLink = path.join(tempDir, 'node_modules', '@truefoundry', 'trueforge-sdk');
+  await symlink(sdkSource, sdkLink, process.platform === 'win32' ? 'junction' : undefined);
 
   // create a package.json for the consumer
   await writeFile(
