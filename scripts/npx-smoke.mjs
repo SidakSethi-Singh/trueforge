@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const win32 = platform === 'win32';
 const shell = win32 ? { shell: true } : {};
+const host = '127.0.0.1';
 const port = 18_790;
+const origin = `http://${host}:${String(port)}`;
 const packDir = await mkdtemp(path.join(tmpdir(), 'trueforge-pack-'));
 const consumerDir = await mkdtemp(path.join(tmpdir(), 'trueforge-npx-'));
 let child;
@@ -18,7 +20,7 @@ try {
   for (const filter of ['@truefoundry/trueforge-core', '@truefoundry/trueforge-sdk', '@truefoundry/trueforge']) {
     execFileSync('pnpm', ['--filter', filter, 'pack', '--pack-destination', packDir], {
       cwd: rootDir,
-      stdio: 'inherit',
+      stdio: 'pipe',
       ...shell,
     });
   }
@@ -33,6 +35,7 @@ try {
       cwd: consumerDir,
       env: {
         ...process.env,
+        HOST: host,
         STANDALONE: 'true',
         SQLITE_PATH: path.join(consumerDir, 'db.sqlite'),
         NODE_ENV: 'production',
@@ -42,28 +45,31 @@ try {
   );
 
   const deadline = Date.now() + 90_000;
+  let lastError;
   let ready = false;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
       throw new Error(`CLI exited before ready (code=${String(child.exitCode)})`);
     }
     try {
+      const signal = AbortSignal.timeout(2_000);
       const [health, ui] = await Promise.all([
-        globalThis.fetch(`http://127.0.0.1:${String(port)}/healthz`),
-        globalThis.fetch(`http://127.0.0.1:${String(port)}/`),
+        globalThis.fetch(`${origin}/healthz`, { signal }),
+        globalThis.fetch(`${origin}/`, { signal }),
       ]);
       const html = await ui.text();
       if (health.ok && ui.ok && html.includes('id="root"')) {
         ready = true;
         break;
       }
-    } catch {
-      // not listening yet
+      lastError = new Error(`healthz=${String(health.status)} ui=${String(ui.status)}`);
+    } catch (error) {
+      lastError = error;
     }
     await delay(500);
   }
   if (!ready) {
-    throw new Error('packed CLI did not become ready');
+    throw new Error('packed CLI did not become ready', { cause: lastError });
   }
   console.log('packed CLI healthz and UI OK');
 } finally {

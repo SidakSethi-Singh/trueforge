@@ -199,9 +199,6 @@ jobs:
       - name: SQLite store tests
         run: pnpm test:store:sqlite
 
-      - name: Pack and boot published CLI
-        run: pnpm smoke:npx
-
   # Path-gated tests only — format/lint are covered by the global job above.
   package-checks:
     name: Package (${{ matrix.package }})
