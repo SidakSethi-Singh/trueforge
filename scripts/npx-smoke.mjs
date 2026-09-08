@@ -52,7 +52,7 @@ try {
       throw new Error(`CLI exited before ready (code=${String(child.exitCode)})`);
     }
     try {
-      const signal = AbortSignal.timeout(2_000);
+      const signal = globalThis.AbortSignal.timeout(2_000);
       const [health, ui] = await Promise.all([
         globalThis.fetch(`${origin}/healthz`, { signal }),
         globalThis.fetch(`${origin}/`, { signal }),
